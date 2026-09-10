@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireStudent } from "@/lib/guards";
 import { LessonPlayer } from "@/components/lesson/LessonPlayer";
+import { OfflineLessonCacher } from "@/components/OfflineLessonCacher";
 
 export default async function LessonPage({
   params,
@@ -33,6 +34,8 @@ export default async function LessonPage({
   });
 
   return (
+    <>
+    <OfflineLessonCacher />
     <LessonPlayer
       lessonId={lesson.id}
       lessonTitle={lesson.title}
@@ -48,5 +51,6 @@ export default async function LessonPage({
       initialPositionSeconds={checkpoint?.positionSeconds ?? undefined}
       alreadyCompleted={checkpoint?.completed ?? false}
     />
+    </>
   );
 }
