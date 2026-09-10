@@ -9,22 +9,32 @@ import { QuizPlayer } from "./QuizPlayer";
 import { TraceCanvas } from "./TraceCanvas";
 import { ReadingPassagePlayer } from "./ReadingPassagePlayer";
 import { WordBuilder } from "./WordBuilder";
+import { VideoPlayer } from "./VideoPlayer";
 import type {
   NarratedStoryContent,
   MatchingContent,
   DrawingTraceContent,
   ReadingPassageContent,
   WordBuilderContent,
+  VideoContent,
 } from "@/lib/activity-types";
 
 type AnswerOption = { id: string; label: string; isCorrect: boolean };
 type Question = { id: string; prompt: string; explanation: string | null; answerOptions: AnswerOption[] };
+type MediaAssetDTO = {
+  url: string;
+  captionsUrl: string | null;
+  transcript: string | null;
+  lowResUrl: string | null;
+  durationSec: number | null;
+};
 type ActivityDTO = {
   id: string;
   type: string;
   title: string;
   content: unknown;
   questions: Question[];
+  mediaAssets?: MediaAssetDTO[];
 };
 
 export function LessonPlayer({
@@ -32,12 +42,14 @@ export function LessonPlayer({
   lessonTitle,
   activities,
   initialStep,
+  initialPositionSeconds,
   alreadyCompleted,
 }: {
   lessonId: string;
   lessonTitle: string;
   activities: ActivityDTO[];
   initialStep: number;
+  initialPositionSeconds?: number;
   alreadyCompleted: boolean;
 }) {
   const [step, setStep] = useState(Math.min(initialStep, activities.length - 1));
@@ -54,6 +66,21 @@ export function LessonPlayer({
         activityId: activity.id,
         positionStep: nextStep,
         completed,
+      });
+    });
+  }
+
+  // Video checkpoints save mid-activity (on pause / periodically) without
+  // advancing the lesson step, so "Continue Learning" resumes at the exact
+  // second the student left off, not just at the start of the video again.
+  function persistVideoPosition(seconds: number) {
+    startTransition(() => {
+      saveCheckpoint({
+        lessonId,
+        activityId: activity.id,
+        positionStep: step,
+        positionSeconds: seconds,
+        completed: false,
       });
     });
   }
@@ -127,6 +154,15 @@ export function LessonPlayer({
       )}
       {activity.type === "DRAG_AND_DROP" && (
         <WordBuilder content={activity.content as WordBuilderContent} onDone={submitScored} />
+      )}
+      {activity.type === "VIDEO" && (
+        <VideoPlayer
+          content={activity.content as VideoContent}
+          asset={activity.mediaAssets?.[0] ?? null}
+          initialPositionSeconds={step === initialStep ? initialPositionSeconds : undefined}
+          onCheckpoint={persistVideoPosition}
+          onDone={advance}
+        />
       )}
     </div>
   );

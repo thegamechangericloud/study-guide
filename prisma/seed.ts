@@ -621,6 +621,60 @@ async function main() {
   void matchEco;
 
   // ---------------------------------------------------------------------
+  // Technical demo lesson — VideoPlayer QA only, NOT curriculum content.
+  //
+  // Exercises checkpoint-pause/resume, captions, transcript, playback
+  // speed, and the low-res toggle against a real video file. The clip
+  // (CC0 / public domain, silent, no spoken narration) is a Scottish
+  // countryside montage — unrelated to the Dominican Republic — so its
+  // title, unit, disclaimer banner, and this comment all make unmistakably
+  // clear it is not reviewed MINERD curriculum (spec §13, §20).
+  // Source: Rose Abrams, "Nature montage around Aberfeldy", CC0 1.0,
+  // https://commons.wikimedia.org/wiki/File:Nature_montage_around_Aberfeldy.webm
+  // ---------------------------------------------------------------------
+  console.log("Seeding VideoPlayer technical-demo lesson…");
+
+  const videoDemoLesson = await publishedLesson({
+    subjectId: subjects.SCIENCE.id,
+    gradeId: grades.S4.id,
+    unitTitle: "Demostración técnica (no es currículo)",
+    lessonTitle: "Prueba del reproductor de video — contenido de muestra",
+    recommendedAge: "N/A — solo para pruebas técnicas",
+    objectives: ["Verificar el reproductor de video: pausa/reanudación, subtítulos, transcripción, velocidad y modo de datos bajos"],
+    vocabulary: [],
+    explanation:
+      "Esta lección existe únicamente para probar el componente VideoPlayer. El video es un clip de dominio público sin relación con el currículo de la República Dominicana — ver el aviso dentro del reproductor.",
+  });
+  await prisma.activity.create({
+    data: {
+      lessonId: videoDemoLesson.id,
+      type: "VIDEO",
+      title: "Clip de muestra (CC0)",
+      order: 1,
+      content: {
+        introText: "Este video prueba el reproductor: subtítulos, transcripción, velocidad y modo de datos bajos.",
+        demoDisclaimer:
+          "Contenido de muestra con licencia CC0, sin relación con el currículo dominicano. Usado solo para probar el reproductor de video.",
+      },
+      mediaAssets: {
+        // The original upload is 4K (3840x2160) and stalls on playback in
+        // some environments — using Commons' own 480p/360p transcodes
+        // instead (smaller, reliably decodable, and lets the low-res
+        // toggle demo something real).
+        create: {
+          kind: "VIDEO",
+          url: "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/49/Nature_montage_around_Aberfeldy.webm/Nature_montage_around_Aberfeldy.webm.480p.vp9.webm",
+          lowResUrl: "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/49/Nature_montage_around_Aberfeldy.webm/Nature_montage_around_Aberfeldy.webm.360p.vp9.webm",
+          captionsUrl: "/demo/nature-captions-es.vtt",
+          transcript:
+            "Video de muestra sin narración, usado únicamente para probar el reproductor de video (subtítulos, transcripción, velocidad y modo de datos bajos). Muestra un paisaje natural con colinas, ovejas, ganado, bosque y un río. No representa contenido curricular revisado de la República Dominicana. Fuente: Rose Abrams, \"Nature montage around Aberfeldy\", licencia CC0 1.0, Wikimedia Commons.",
+          durationSec: 36,
+        },
+      },
+    },
+  });
+
+  // ---------------------------------------------------------------------
   // Sample progress so dashboards have something real to show
   // ---------------------------------------------------------------------
   console.log("Seeding sample progress…");
@@ -685,6 +739,7 @@ async function main() {
   console.log(`  Teacher:        ${teacher.email}`);
   console.log(`  Parent:         ${parent.email}`);
   console.log("  Student PIN for all demo profiles: 1234");
+  console.log(`\nVideoPlayer technical-demo lesson: /student/lesson/${videoDemoLesson.id}`);
 }
 
 main()

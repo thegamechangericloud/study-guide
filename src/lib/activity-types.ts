@@ -27,3 +27,13 @@ export type WordBuilderContent = {
 };
 
 export type QuizContent = Record<string, never>; // quizzes use the relational Question/AnswerOption tables
+
+// The actual media (url/captions/transcript/lowRes) lives on the related
+// MediaAsset row, not here — this only carries per-activity player config.
+export type VideoContent = {
+  introText?: string;
+  // Rendered as a prominent banner above the player. Used to mark a clip
+  // that is not reviewed MINERD curriculum (see spec §13, §20) — e.g. a
+  // freely-licensed demo used only to exercise the VideoPlayer component.
+  demoDisclaimer?: string;
+};

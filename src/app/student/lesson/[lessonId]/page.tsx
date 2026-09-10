@@ -21,6 +21,7 @@ export default async function LessonPage({
             orderBy: { order: "asc" },
             include: { answerOptions: { orderBy: { order: "asc" } } },
           },
+          mediaAssets: true,
         },
       },
     },
@@ -41,8 +42,10 @@ export default async function LessonPage({
         title: a.title,
         content: a.content,
         questions: a.questions,
+        mediaAssets: a.mediaAssets,
       }))}
       initialStep={checkpoint?.positionStep ?? 0}
+      initialPositionSeconds={checkpoint?.positionSeconds ?? undefined}
       alreadyCompleted={checkpoint?.completed ?? false}
     />
   );
