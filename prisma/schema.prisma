@@ -1,0 +1,745 @@
+// Study Guide — Interactive Learning Platform for Dominican Students
+// Core data model. See docs/04-database-schema.md for the annotated version.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  PLATFORM_ADMIN
+  SCHOOL_ADMIN
+  TEACHER
+  PARENT
+}
+
+/// Adult accounts only. Children never hold an email/password account —
+/// see StudentProfile. Verified email is required before the account can
+/// create or manage a child profile.
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  emailVerifiedAt   DateTime?
+  passwordHash      String
+  name              String
+  role              UserRole
+  schoolId          String?
+  school            School?   @relation(fields: [schoolId], references: [id])
+  mfaEnabled        Boolean   @default(false)
+  mfaSecret         String?
+  locale            String    @default("es-DO")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  suspendedAt       DateTime?
+
+  guardianships     Guardianship[]
+  taughtClassrooms  ClassroomTeacher[]
+  createdProfiles   StudentProfile[]   @relation("ProfileCreatedBy")
+  feedbackGiven     TeacherFeedback[]
+  notifications     Notification[]
+  consentsGiven     ConsentRecord[]
+  contentAuthored   Lesson[]           @relation("LessonAuthor")
+  contentReviewed   ContentApproval[]  @relation("ContentReviewer")
+  auditLogs         AuditLog[]
+
+  @@index([schoolId])
+}
+
+/// Households let a family use the platform without a formal school
+/// relationship (e.g. homeschool, out-of-school tutoring).
+model Household {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  students StudentProfile[]
+}
+
+/// The protected child profile. No email required. Access is PIN or
+/// picture-password based, and always created/managed by a verified adult.
+model StudentProfile {
+  id                String   @id @default(cuid())
+  displayName       String
+  avatarKey         String   @default("default")
+  studentIdNumber   String?
+  pinHash           String
+  picturePasswordKey String?
+  dateOfBirth       DateTime?
+  ageInterfaceGroup AgeInterfaceGroup
+
+  schoolId    String?
+  school      School?    @relation(fields: [schoolId], references: [id])
+  householdId String?
+  household   Household? @relation(fields: [householdId], references: [id])
+
+  currentGradeId String?
+  currentGrade   Grade? @relation(fields: [currentGradeId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("ProfileCreatedBy", fields: [createdById], references: [id])
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  guardians           Guardianship[]
+  enrollments         Enrollment[]
+  progressCheckpoints ProgressCheckpoint[]
+  attempts            Attempt[]
+  skillMastery        SkillMastery[]
+  readingRecordings   ReadingRecording[]
+  feedbackReceived    TeacherFeedback[]
+  achievements        StudentAchievement[]
+  consentRecords      ConsentRecord[]
+  diagnosticResults   DiagnosticResult[]
+  assignmentOverrides AssignmentStudentOverride[]
+
+  @@index([schoolId])
+  @@index([householdId])
+}
+
+enum GuardianRelationship {
+  MOTHER
+  FATHER
+  LEGAL_GUARDIAN
+  OTHER_FAMILY
+}
+
+/// Many-to-many: a child can have multiple guardians, an adult can guard
+/// multiple children.
+model Guardianship {
+  id               String               @id @default(cuid())
+  userId           String
+  user             User                 @relation(fields: [userId], references: [id])
+  studentProfileId String
+  studentProfile   StudentProfile       @relation(fields: [studentProfileId], references: [id])
+  relationship     GuardianRelationship
+  isPrimary        Boolean              @default(false)
+  createdAt        DateTime             @default(now())
+
+  @@unique([userId, studentProfileId])
+}
+
+// ---------------------------------------------------------------------------
+// Schools
+// ---------------------------------------------------------------------------
+
+model School {
+  id            String   @id @default(cuid())
+  name          String
+  brandingColor String   @default("#0057B7")
+  logoUrl       String?
+  address       String?
+  province      String?
+  religiousOrientation String? // drives default Bible Studies configuration
+  bibleStudiesEnabled  Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users            User[]
+  studentProfiles  StudentProfile[]
+  classrooms       Classroom[]
+  academicYears    AcademicYear[]
+  subjectConfigs   SchoolSubjectConfig[]
+  auditLogs        AuditLog[]
+}
+
+model AcademicYear {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  label     String // e.g. "2026-2027"
+  startsOn  DateTime
+  endsOn    DateTime
+
+  terms      Term[]
+  classrooms Classroom[]
+
+  @@unique([schoolId, label])
+}
+
+model Term {
+  id             String       @id @default(cuid())
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  label          String // e.g. "Term 1"
+  startsOn       DateTime
+  endsOn         DateTime
+}
+
+// ---------------------------------------------------------------------------
+// Curriculum & grade model (MINERD-aligned)
+// ---------------------------------------------------------------------------
+
+enum EducationLevel {
+  INITIAL
+  PRIMARY
+  SECONDARY
+}
+
+enum AgeInterfaceGroup {
+  EARLY_EXPLORERS      // 3-5
+  BEGINNING_READERS    // 5-8
+  DEVELOPING_LEARNERS  // 8-11
+  INDEPENDENT_LEARNERS // 11-13
+  SECONDARY_LEARNERS   // 13-18
+}
+
+model Cycle {
+  id     String         @id @default(cuid())
+  level  EducationLevel
+  name   String // e.g. "Primer Ciclo", "Segundo Ciclo"
+  order  Int
+
+  grades Grade[]
+
+  @@unique([level, order])
+}
+
+/// Standard MINERD grades are seeded with isCustom = false. Schools can add
+/// their own custom/legacy grade labels (isCustom = true, scoped to schoolId)
+/// without altering the standard structure.
+model Grade {
+  id             String         @id @default(cuid())
+  level          EducationLevel
+  cycleId        String?
+  cycle          Cycle?         @relation(fields: [cycleId], references: [id])
+  name           String // e.g. "1er Grado", "Pre-Kínder"
+  order          Int
+  minAge         Int
+  maxAge         Int
+  defaultAgeGroup AgeInterfaceGroup
+  isCustom       Boolean        @default(false)
+  schoolId       String? // set only when isCustom = true
+
+  units             Unit[]
+  competencies      Competency[]
+  studentsCurrent   StudentProfile[]
+  classrooms        Classroom[]
+  enrollments       Enrollment[]
+  subjectConfigs    SchoolSubjectConfig[]
+
+  @@unique([level, name, schoolId])
+}
+
+model Subject {
+  id           String  @id @default(cuid())
+  code         String  @unique // e.g. "SPANISH", "MATH", "BIBLE_STUDIES"
+  name         String
+  isFaithBased Boolean @default(false) // true only for Bible Studies
+
+  units          Unit[]
+  competencies   Competency[]
+  schoolConfigs  SchoolSubjectConfig[]
+}
+
+/// Per-school enable/disable and configuration, primarily used to toggle
+/// Bible Studies according to each school's religious orientation.
+model SchoolSubjectConfig {
+  id        String   @id @default(cuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  gradeId   String?
+  grade     Grade?   @relation(fields: [gradeId], references: [id])
+  enabled   Boolean  @default(true)
+  config    Json?    // e.g. denomination, translation preference
+
+  @@unique([schoolId, subjectId, gradeId])
+}
+
+model Competency {
+  id               String  @id @default(cuid())
+  subjectId        String
+  subject          Subject @relation(fields: [subjectId], references: [id])
+  gradeId          String
+  grade            Grade   @relation(fields: [gradeId], references: [id])
+  type             CompetencyType
+  minerdReference  String? // official curriculum code/reference
+  description      String
+
+  indicators       AchievementIndicator[]
+  lessons          LessonCompetency[]
+  skillMastery     SkillMastery[]
+  diagnosticResults DiagnosticResult[]
+}
+
+enum CompetencyType {
+  FUNDAMENTAL
+  SPECIFIC
+}
+
+model AchievementIndicator {
+  id           String     @id @default(cuid())
+  competencyId String
+  competency   Competency @relation(fields: [competencyId], references: [id])
+  description  String
+
+  lessons LessonIndicator[]
+}
+
+model Unit {
+  id          String  @id @default(cuid())
+  subjectId   String
+  subject     Subject @relation(fields: [subjectId], references: [id])
+  gradeId     String
+  grade       Grade   @relation(fields: [gradeId], references: [id])
+  title       String
+  description String?
+  order       Int
+
+  lessons Lesson[]
+
+  @@index([subjectId, gradeId])
+}
+
+enum ContentStatus {
+  DRAFT
+  ACADEMIC_REVIEW
+  SAFETY_REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+model Lesson {
+  id                  String        @id @default(cuid())
+  unitId              String
+  unit                Unit          @relation(fields: [unitId], references: [id])
+  title               String
+  recommendedAge      String?
+  objectives          String[]
+  prerequisites       String[]
+  vocabulary          String[]
+  explanation         String?
+  guidedPractice      String?
+  independentPractice String?
+  assessmentNotes     String?
+  accessibilityNotes  String?
+  teacherNotes        String?
+  parentExtension     String?
+  sourceAttribution   String?
+
+  status       ContentStatus @default(DRAFT)
+  authorId     String
+  author       User          @relation("LessonAuthor", fields: [authorId], references: [id])
+  publishedAt  DateTime?
+
+  order Int
+
+  activities   Activity[]
+  competencies LessonCompetency[]
+  indicators   LessonIndicator[]
+  approvals    ContentApproval[]
+  assignments  Assignment[]
+  checkpoints  ProgressCheckpoint[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([unitId, order])
+}
+
+model LessonCompetency {
+  lessonId     String
+  lesson       Lesson     @relation(fields: [lessonId], references: [id])
+  competencyId String
+  competency   Competency @relation(fields: [competencyId], references: [id])
+
+  @@id([lessonId, competencyId])
+}
+
+model LessonIndicator {
+  lessonId    String
+  lesson      Lesson               @relation(fields: [lessonId], references: [id])
+  indicatorId String
+  indicator   AchievementIndicator @relation(fields: [indicatorId], references: [id])
+
+  @@id([lessonId, indicatorId])
+}
+
+/// Full audit trail of the Draft -> ... -> Published workflow.
+model ContentApproval {
+  id         String        @id @default(cuid())
+  lessonId   String
+  lesson     Lesson        @relation(fields: [lessonId], references: [id])
+  fromStatus ContentStatus
+  toStatus   ContentStatus
+  reviewerId String
+  reviewer   User          @relation("ContentReviewer", fields: [reviewerId], references: [id])
+  notes      String?
+  createdAt  DateTime      @default(now())
+}
+
+enum ActivityType {
+  NARRATED_STORY
+  VIDEO
+  DRAG_AND_DROP
+  MATCHING
+  FLASHCARDS
+  PUZZLE
+  MEMORY_GAME
+  MATH_MANIPULATIVE
+  INTERACTIVE_MAP
+  TIMELINE
+  SCIENCE_SIMULATION
+  DRAWING
+  MUSIC_RHYTHM
+  PRONUNCIATION
+  READING_PASSAGE
+  QUIZ
+  PROJECT
+  PRINTABLE_WORKSHEET
+}
+
+/// content is a typed JSON payload per ActivityType (validated at the API
+/// boundary with zod, not enforced by the DB) so new interaction types can
+/// be added without a migration for every game format.
+model Activity {
+  id       String       @id @default(cuid())
+  lessonId String
+  lesson   Lesson       @relation(fields: [lessonId], references: [id])
+  type     ActivityType
+  title    String
+  order    Int
+  content  Json
+
+  mediaAssets MediaAsset[]
+  questions   Question[]
+  attempts    Attempt[]
+
+  @@index([lessonId, order])
+}
+
+enum MediaKind {
+  VIDEO
+  AUDIO
+  IMAGE
+  DOCUMENT
+}
+
+model MediaAsset {
+  id          String    @id @default(cuid())
+  activityId  String
+  activity    Activity  @relation(fields: [activityId], references: [id])
+  kind        MediaKind
+  url         String
+  captionsUrl String?
+  transcript  String?
+  durationSec Int?
+  lowResUrl   String?
+  createdAt   DateTime  @default(now())
+}
+
+model Question {
+  id         String   @id @default(cuid())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id])
+  prompt     String
+  order      Int
+  explanation String? // shown immediately after answering
+
+  answerOptions AnswerOption[]
+}
+
+model AnswerOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  label      String
+  isCorrect  Boolean  @default(false)
+  order      Int
+}
+
+// ---------------------------------------------------------------------------
+// Classrooms, enrollment, assignments
+// ---------------------------------------------------------------------------
+
+model Classroom {
+  id             String       @id @default(cuid())
+  schoolId       String
+  school         School       @relation(fields: [schoolId], references: [id])
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id])
+  gradeId        String
+  grade          Grade        @relation(fields: [gradeId], references: [id])
+  section        String // e.g. "A"
+  classCode      String       @unique // secure enrollment code
+
+  teachers    ClassroomTeacher[]
+  enrollments Enrollment[]
+  assignments Assignment[]
+
+  createdAt DateTime @default(now())
+}
+
+model ClassroomTeacher {
+  id          String    @id @default(cuid())
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  teacherId   String
+  teacher     User      @relation(fields: [teacherId], references: [id])
+
+  @@unique([classroomId, teacherId])
+}
+
+model Enrollment {
+  id               String         @id @default(cuid())
+  classroomId      String
+  classroom        Classroom      @relation(fields: [classroomId], references: [id])
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  gradeId          String
+  grade            Grade          @relation(fields: [gradeId], references: [id])
+  enrolledAt       DateTime       @default(now())
+  exitedAt         DateTime?
+
+  @@unique([classroomId, studentProfileId])
+}
+
+model Assignment {
+  id             String    @id @default(cuid())
+  classroomId    String
+  classroom      Classroom @relation(fields: [classroomId], references: [id])
+  lessonId       String
+  lesson         Lesson    @relation(fields: [lessonId], references: [id])
+  startsOn       DateTime?
+  dueOn          DateTime?
+  accommodations String?
+  createdAt      DateTime  @default(now())
+
+  overrides AssignmentStudentOverride[]
+  attempts  Attempt[]
+}
+
+/// Per-student re-opens, deadline extensions, or exclusions without deleting
+/// historical attempt data.
+model AssignmentStudentOverride {
+  id               String         @id @default(cuid())
+  assignmentId     String
+  assignment       Assignment     @relation(fields: [assignmentId], references: [id])
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  reopened         Boolean        @default(false)
+  excluded         Boolean        @default(false)
+  extendedDueOn    DateTime?
+  note             String?
+
+  @@unique([assignmentId, studentProfileId])
+}
+
+// ---------------------------------------------------------------------------
+// Progress, mastery, resume
+// ---------------------------------------------------------------------------
+
+/// The single source of truth for "Continue Learning". One row per
+/// (student, lesson): tracks the exact activity, and within it the
+/// page/audio/video position, so a lesson resumes precisely where the
+/// student left off.
+model ProgressCheckpoint {
+  id                String         @id @default(cuid())
+  studentProfileId  String
+  studentProfile    StudentProfile @relation(fields: [studentProfileId], references: [id])
+  lessonId          String
+  lesson            Lesson         @relation(fields: [lessonId], references: [id])
+  lastActivityId    String?
+  positionSeconds   Int?           // audio/video timestamp
+  positionStep      Int?           // step within a multi-step interactive activity
+  completed         Boolean        @default(false)
+  completedAt       DateTime?
+  lastAccessedAt    DateTime       @default(now())
+  createdAt         DateTime       @default(now())
+
+  @@unique([studentProfileId, lessonId])
+  @@index([studentProfileId, lastAccessedAt])
+}
+
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+  REVIEWED
+}
+
+/// Completion (did they finish it) is tracked separately from mastery
+/// (SkillMastery) as required by the product spec.
+model Attempt {
+  id               String         @id @default(cuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  activityId       String
+  activity         Activity       @relation(fields: [activityId], references: [id])
+  assignmentId     String?
+  assignment       Assignment?    @relation(fields: [assignmentId], references: [id])
+  status           AttemptStatus  @default(IN_PROGRESS)
+  scoreRaw         Int?
+  scoreMax         Int?
+  timeSpentSeconds Int            @default(0)
+  responsePayload  Json?
+  startedAt        DateTime       @default(now())
+  completedAt      DateTime?
+
+  @@index([studentProfileId, activityId])
+}
+
+enum MasteryLevel {
+  NOT_STARTED
+  DEVELOPING
+  PROFICIENT
+  MASTERED
+}
+
+model SkillMastery {
+  id               String         @id @default(cuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  competencyId     String
+  competency       Competency     @relation(fields: [competencyId], references: [id])
+  level            MasteryLevel   @default(NOT_STARTED)
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([studentProfileId, competencyId])
+}
+
+model ReadingRecording {
+  id               String         @id @default(cuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  audioUrl         String
+  passageText      String
+  durationSec      Int?
+  createdAt        DateTime       @default(now())
+  teacherReviewedAt DateTime?
+  teacherReviewNote String?
+}
+
+model TeacherFeedback {
+  id               String         @id @default(cuid())
+  teacherId        String
+  teacher          User           @relation(fields: [teacherId], references: [id])
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  message          String
+  visibleToParent  Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Motivation
+// ---------------------------------------------------------------------------
+
+model Achievement {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  title       String
+  description String
+  iconKey     String
+
+  studentAchievements StudentAchievement[]
+}
+
+model StudentAchievement {
+  id               String         @id @default(cuid())
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  achievementId    String
+  achievement      Achievement    @relation(fields: [achievementId], references: [id])
+  earnedAt         DateTime       @default(now())
+
+  @@unique([studentProfileId, achievementId])
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostics & personalized learning
+// ---------------------------------------------------------------------------
+
+model DiagnosticAssessment {
+  id        String  @id @default(cuid())
+  subjectId String
+  title     String
+  gradeBand String // e.g. "Initial", "1st-2nd grade"
+
+  results DiagnosticResult[]
+}
+
+model DiagnosticResult {
+  id                    String               @id @default(cuid())
+  studentProfileId      String
+  studentProfile        StudentProfile       @relation(fields: [studentProfileId], references: [id])
+  diagnosticAssessmentId String
+  diagnosticAssessment  DiagnosticAssessment @relation(fields: [diagnosticAssessmentId], references: [id])
+  competencyId          String?
+  competency             Competency?         @relation(fields: [competencyId], references: [id])
+  recommendedLevel      String
+  teacherOverride        String?
+  completedAt            DateTime            @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Notifications, consent, audit
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  WEEKLY_SUMMARY
+  TEACHER_MESSAGE
+  ASSIGNMENT_DUE
+  ACHIEVEMENT_EARNED
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+}
+
+enum ConsentType {
+  ACCOUNT_CREATION
+  DATA_PROCESSING
+  MEDIA_RECORDING
+  MARKETING_COMMUNICATION
+}
+
+model ConsentRecord {
+  id               String         @id @default(cuid())
+  guardianId       String
+  guardian         User           @relation(fields: [guardianId], references: [id])
+  studentProfileId String
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  type             ConsentType
+  granted          Boolean
+  grantedAt        DateTime?
+  revokedAt        DateTime?
+
+  @@index([studentProfileId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  schoolId   String?
+  school     School?  @relation(fields: [schoolId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([schoolId, createdAt])
+  @@index([entityType, entityId])
+}
