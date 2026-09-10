@@ -1,0 +1,133 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import Link from "next/link";
+import { saveCheckpoint, recordAttempt } from "@/actions/progress";
+import { StoryPlayer } from "./StoryPlayer";
+import { MatchingGame } from "./MatchingGame";
+import { QuizPlayer } from "./QuizPlayer";
+import { TraceCanvas } from "./TraceCanvas";
+import { ReadingPassagePlayer } from "./ReadingPassagePlayer";
+import { WordBuilder } from "./WordBuilder";
+import type {
+  NarratedStoryContent,
+  MatchingContent,
+  DrawingTraceContent,
+  ReadingPassageContent,
+  WordBuilderContent,
+} from "@/lib/activity-types";
+
+type AnswerOption = { id: string; label: string; isCorrect: boolean };
+type Question = { id: string; prompt: string; explanation: string | null; answerOptions: AnswerOption[] };
+type ActivityDTO = {
+  id: string;
+  type: string;
+  title: string;
+  content: unknown;
+  questions: Question[];
+};
+
+export function LessonPlayer({
+  lessonId,
+  lessonTitle,
+  activities,
+  initialStep,
+  alreadyCompleted,
+}: {
+  lessonId: string;
+  lessonTitle: string;
+  activities: ActivityDTO[];
+  initialStep: number;
+  alreadyCompleted: boolean;
+}) {
+  const [step, setStep] = useState(Math.min(initialStep, activities.length - 1));
+  const [finished, setFinished] = useState(alreadyCompleted && initialStep >= activities.length - 1);
+  const [, startTransition] = useTransition();
+
+  const activity = activities[step];
+  const progressPct = Math.round(((finished ? activities.length : step) / activities.length) * 100);
+
+  function persist(nextStep: number, completed: boolean) {
+    startTransition(() => {
+      saveCheckpoint({
+        lessonId,
+        activityId: activity.id,
+        positionStep: nextStep,
+        completed,
+      });
+    });
+  }
+
+  function advance() {
+    const isLast = step === activities.length - 1;
+    if (isLast) {
+      persist(step, true);
+      setFinished(true);
+    } else {
+      const next = step + 1;
+      persist(next, false);
+      setStep(next);
+    }
+  }
+
+  function submitScored(result: { correct: number; total: number }) {
+    startTransition(() => {
+      recordAttempt({
+        activityId: activity.id,
+        scoreRaw: result.correct,
+        scoreMax: result.total,
+        timeSpentSeconds: 0,
+      });
+    });
+    advance();
+  }
+
+  if (finished) {
+    return (
+      <div className="card p-10 text-center space-y-4">
+        <p className="text-5xl" aria-hidden>
+          🏆
+        </p>
+        <h2 className="text-2xl font-bold">¡Lección completada!</h2>
+        <p style={{ color: "var(--color-ink-muted)" }}>{lessonTitle}</p>
+        <Link href="/student" className="btn-primary inline-block px-6 py-2.5 font-semibold focus-ring">
+          Volver a mi panel
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="flex justify-between text-xs mb-1" style={{ color: "var(--color-ink-muted)" }}>
+          <span>{lessonTitle}</span>
+          <span>{activity.title}</span>
+        </div>
+        <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--color-border)" }}>
+          <div
+            className="h-full transition-[width]"
+            style={{ width: `${progressPct}%`, background: "var(--color-primary)" }}
+          />
+        </div>
+      </div>
+
+      {activity.type === "NARRATED_STORY" && (
+        <StoryPlayer content={activity.content as NarratedStoryContent} onDone={advance} />
+      )}
+      {activity.type === "MATCHING" && (
+        <MatchingGame content={activity.content as MatchingContent} onDone={submitScored} />
+      )}
+      {activity.type === "QUIZ" && <QuizPlayer questions={activity.questions} onDone={submitScored} />}
+      {activity.type === "DRAWING" && (
+        <TraceCanvas content={activity.content as DrawingTraceContent} onDone={advance} />
+      )}
+      {activity.type === "READING_PASSAGE" && (
+        <ReadingPassagePlayer content={activity.content as ReadingPassageContent} onDone={advance} />
+      )}
+      {activity.type === "DRAG_AND_DROP" && (
+        <WordBuilder content={activity.content as WordBuilderContent} onDone={submitScored} />
+      )}
+    </div>
+  );
+}
