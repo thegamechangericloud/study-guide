@@ -408,6 +408,15 @@ async function main() {
       { questionId: qM1.id, label: "Perro", isCorrect: false, order: 3 },
     ],
   });
+  await prisma.activity.create({
+    data: {
+      lessonId: lessonM.id, type: "PRINTABLE_WORKSHEET", title: "Practica en papel: la letra M", order: 5,
+      content: {
+        instructions: "Imprime esta hoja y practica escribiendo la letra M y las palabras.",
+        items: ["M — M — M", "mango", "mariposa", "mesa"],
+      },
+    },
+  });
   void matchM;
 
   // 2) Beginning Readers — 1er Grado — decodable story with Dominican setting
@@ -657,6 +666,15 @@ async function main() {
         { left: "pelota", right: "⚽" },
         { left: "pato", right: "🦆" },
       ] },
+    },
+  });
+  await prisma.activity.create({
+    data: {
+      lessonId: lessonPina.id, type: "PRINTABLE_WORKSHEET", title: "Practica en papel: la letra P", order: 3,
+      content: {
+        instructions: "Imprime esta hoja y practica escribiendo la letra P y las palabras.",
+        items: ["P — P — P", "piña", "pelota", "pato"],
+      },
     },
   });
 
@@ -1746,16 +1764,31 @@ async function main() {
     data: { studentProfileId: valentina.id, competencyId: fracCompetency.id, level: "PROFICIENT" },
   });
 
-  const achievement = await prisma.achievement.create({
+  await prisma.diagnosticAssessment.create({
     data: {
-      code: "FIRST_LESSON",
-      title: "Primera lección completada",
-      description: "¡Completaste tu primera lección en Estudia RD!",
-      iconKey: "🏅",
+      subjectId: subjects.SPANISH.id,
+      title: "Diagnóstico inicial de lectura",
+      gradeBand: "Exploradores Iniciales / Lectores Principiantes",
     },
   });
+
+  // Full catalog checked at runtime by src/lib/achievements.ts — codes here
+  // must match ACHIEVEMENT_CODES exactly.
+  const achievementCatalog = await Promise.all(
+    [
+      { code: "FIRST_LESSON", title: "Primera lección completada", description: "¡Completaste tu primera lección en Estudia RD!", iconKey: "🏅" },
+      { code: "FIVE_LESSONS", title: "5 lecciones completadas", description: "¡Ya completaste 5 lecciones! Sigue así.", iconKey: "⭐" },
+      { code: "TEN_LESSONS", title: "10 lecciones completadas", description: "¡10 lecciones completadas! Eres un estudiante dedicado.", iconKey: "🌟" },
+      { code: "TWENTY_LESSONS", title: "20 lecciones completadas", description: "¡20 lecciones! Tu esfuerzo es admirable.", iconKey: "🏆" },
+      { code: "STREAK_3", title: "Racha de 3 días", description: "Estudiaste 3 días seguidos. ¡La constancia es clave!", iconKey: "🔥" },
+      { code: "STREAK_7", title: "Racha de 7 días", description: "¡Una semana completa estudiando todos los días!", iconKey: "🔥" },
+      { code: "PERFECT_QUIZ", title: "Cuestionario perfecto", description: "¡Respondiste todas las preguntas correctamente!", iconKey: "🎯" },
+      { code: "MULTI_SUBJECT_3", title: "Explorador de materias", description: "Completaste lecciones en 3 materias diferentes.", iconKey: "🧭" },
+    ].map((a) => prisma.achievement.create({ data: a }))
+  );
+  const firstLessonAchievement = achievementCatalog.find((a) => a.code === "FIRST_LESSON")!;
   await prisma.studentAchievement.create({
-    data: { studentProfileId: valentina.id, achievementId: achievement.id },
+    data: { studentProfileId: valentina.id, achievementId: firstLessonAchievement.id },
   });
 
   await prisma.teacherFeedback.create({

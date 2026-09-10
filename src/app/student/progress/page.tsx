@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { prisma } from "@/lib/prisma";
 import { requireStudent } from "@/lib/guards";
 import { subjectTheme } from "@/lib/subject-theme";
+import { computeStreakDays } from "@/lib/achievements";
 
 const MASTERY_LABEL: Record<string, string> = {
   NOT_STARTED: "Por comenzar",
@@ -13,7 +14,7 @@ const MASTERY_LABEL: Record<string, string> = {
 export default async function StudentProgressPage() {
   const session = await requireStudent();
 
-  const [checkpoints, mastery, achievements] = await Promise.all([
+  const [checkpoints, mastery, achievements, streakDays, diagnosticResult] = await Promise.all([
     prisma.progressCheckpoint.findMany({
       where: { studentProfileId: session.sub },
       include: { lesson: true },
@@ -27,6 +28,11 @@ export default async function StudentProgressPage() {
       where: { studentProfileId: session.sub },
       include: { achievement: true },
     }),
+    computeStreakDays(session.sub),
+    prisma.diagnosticResult.findFirst({
+      where: { studentProfileId: session.sub },
+      orderBy: { completedAt: "desc" },
+    }),
   ]);
 
   const completedCount = checkpoints.filter((c) => c.completed).length;
@@ -35,8 +41,8 @@ export default async function StudentProgressPage() {
     <div className="space-y-8">
       <h1 className="text-2xl font-bold">🏆 Mis logros</h1>
 
-      <section className="grid sm:grid-cols-3 gap-4">
-        <div className="card p-5 text-center">
+      <section className="grid sm:grid-cols-4 gap-4">
+        <div className="kid-card p-5 text-center">
           <p className="text-3xl font-extrabold" style={{ color: "var(--color-primary)" }}>
             {completedCount}
           </p>
@@ -44,7 +50,7 @@ export default async function StudentProgressPage() {
             Lecciones completadas
           </p>
         </div>
-        <div className="card p-5 text-center">
+        <div className="kid-card p-5 text-center">
           <p className="text-3xl font-extrabold" style={{ color: "var(--color-secondary)" }}>
             {achievements.length}
           </p>
@@ -52,7 +58,7 @@ export default async function StudentProgressPage() {
             Insignias ganadas
           </p>
         </div>
-        <div className="card p-5 text-center">
+        <div className="kid-card p-5 text-center">
           <p className="text-3xl font-extrabold" style={{ color: "var(--color-palm)" }}>
             {mastery.filter((m) => m.level === "MASTERED").length}
           </p>
@@ -60,16 +66,33 @@ export default async function StudentProgressPage() {
             Destrezas dominadas
           </p>
         </div>
+        <div className="kid-card p-5 text-center">
+          <p className="text-3xl font-extrabold" style={{ color: "var(--color-coral)" }}>
+            🔥 {streakDays}
+          </p>
+          <p className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
+            {streakDays === 1 ? "día seguido" : "días seguidos"}
+          </p>
+        </div>
       </section>
+
+      {diagnosticResult && (
+        <section className="kid-card p-5">
+          <p className="font-semibold">📝 Resultado del diagnóstico inicial</p>
+          <p className="text-lg mt-1" style={{ color: "var(--color-primary)" }}>
+            {diagnosticResult.recommendedLevel}
+          </p>
+        </section>
+      )}
 
       {achievements.length > 0 && (
         <section>
           <h2 className="font-semibold mb-3">Insignias</h2>
           <div className="flex flex-wrap gap-3">
             {achievements.map((a) => (
-              <div key={a.id} className="card px-4 py-3 flex items-center gap-2">
+              <div key={a.id} className="kid-card px-4 py-3 flex items-center gap-2">
                 <span className="text-2xl" aria-hidden>
-                  🏅
+                  {a.achievement.iconKey}
                 </span>
                 <span className="text-sm font-medium">{a.achievement.title}</span>
               </div>

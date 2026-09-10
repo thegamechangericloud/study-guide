@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getStudentSession } from "@/lib/session";
+import { checkAndAwardAchievements } from "@/lib/achievements";
 
 const checkpointSchema = z.object({
   lessonId: z.string(),
@@ -48,6 +49,10 @@ export async function saveCheckpoint(input: z.infer<typeof checkpointSchema>) {
       lastAccessedAt: new Date(),
     },
   });
+
+  if (completed) {
+    await checkAndAwardAchievements(session.sub);
+  }
 
   return { ok: true as const };
 }

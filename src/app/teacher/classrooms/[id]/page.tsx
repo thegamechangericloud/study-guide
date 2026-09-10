@@ -39,6 +39,23 @@ export default async function ClassroomDetailPage({
     checkpoints.map((c) => [checkpointKey(c.studentProfileId, c.lessonId), c])
   );
 
+  // Teacher-only ranking (not shown to students/parents), all completed
+  // lessons for the student, not just this classroom's assignments —
+  // gives the teacher a fuller picture of engagement.
+  const allCompletedCounts = await prisma.progressCheckpoint.groupBy({
+    by: ["studentProfileId"],
+    where: { studentProfileId: { in: studentIds }, completed: true },
+    _count: { _all: true },
+  });
+  const completedCountMap = new Map(allCompletedCounts.map((r) => [r.studentProfileId, r._count._all]));
+  const leaderboard = [...classroom.enrollments]
+    .map((e) => ({
+      studentProfileId: e.studentProfileId,
+      name: e.studentProfile.displayName,
+      completedCount: completedCountMap.get(e.studentProfileId) ?? 0,
+    }))
+    .sort((a, b) => b.completedCount - a.completedCount);
+
   return (
     <div className="space-y-8">
       <div>
@@ -88,6 +105,24 @@ export default async function ClassroomDetailPage({
             Asignar
           </button>
         </form>
+      </section>
+
+      <section className="card p-5">
+        <h2 className="font-semibold mb-1">🏆 Participación de la clase</h2>
+        <p className="text-xs mb-3" style={{ color: "var(--color-ink-muted)" }}>
+          Solo visible para el maestro/a — no se muestra a estudiantes ni familias.
+        </p>
+        <div className="space-y-1.5">
+          {leaderboard.map((s, i) => (
+            <div key={s.studentProfileId} className="flex items-center gap-3 text-sm">
+              <span className="w-5 text-center font-semibold" style={{ color: "var(--color-ink-muted)" }}>
+                {i + 1}
+              </span>
+              <span className="flex-1">{s.name}</span>
+              <span className="font-semibold">{s.completedCount} lecciones</span>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="overflow-x-auto">
