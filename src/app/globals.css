@@ -11,9 +11,13 @@
   --color-accent: #ffcb3d;        /* sunshine yellow */
   --color-palm: #2f9e44;
   --color-coral: #f2545b;
+  --color-sky: #2e9bde;           /* added: sky blue, for PE/English */
+  --color-grape: #8e5bd6;         /* added: grape purple, for Art/Digital */
+  --color-pink: #ef5da8;          /* added: bubblegum pink, for SEL */
   --color-border: #e4dcc9;
   --radius-lg: 1.25rem;
   --radius-md: 0.85rem;
+  --radius-xl: 1.75rem;
   --font-scale: 1;
 }
 
@@ -25,6 +29,11 @@ html[data-contrast="high"] {
   --color-primary: #4fd6ff;
   --color-secondary: #ffb84f;
   --color-accent: #ffe14f;
+  --color-palm: #6fe07f;
+  --color-coral: #ff8a93;
+  --color-sky: #7fd0ff;
+  --color-grape: #d3aaff;
+  --color-pink: #ff9ecf;
   --color-border: #ffffff;
 }
 
@@ -65,4 +74,67 @@ body {
 .focus-ring:focus-visible {
   outline: 3px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------
+   Kid-friendly surfaces — used only under student-facing pages (the
+   `.kid-zone` wrapper), so parent/teacher/admin dashboards stay calm and
+   professional. Respects data-reduced-motion via the global rule above.
+   --------------------------------------------------------------------- */
+.kid-zone {
+  background:
+    radial-gradient(circle at 8% 12%, color-mix(in srgb, var(--color-accent) 18%, transparent) 0, transparent 22%),
+    radial-gradient(circle at 92% 18%, color-mix(in srgb, var(--color-sky) 16%, transparent) 0, transparent 24%),
+    radial-gradient(circle at 15% 92%, color-mix(in srgb, var(--color-coral) 14%, transparent) 0, transparent 24%),
+    radial-gradient(circle at 88% 88%, color-mix(in srgb, var(--color-palm) 14%, transparent) 0, transparent 24%),
+    var(--color-bg);
+  min-height: 100%;
+}
+
+.kid-zone .card {
+  border-radius: var(--radius-xl);
+  border-width: 2px;
+}
+
+.kid-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.kid-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--subject-color, var(--color-primary)) 45%, transparent);
+}
+
+.subject-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  font-size: 1.35rem;
+  background: color-mix(in srgb, var(--subject-color, var(--color-primary)) 18%, white);
+  flex-shrink: 0;
+}
+
+.subject-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--subject-color, var(--color-primary)) 16%, white);
+  color: color-mix(in srgb, var(--subject-color, var(--color-primary)) 70%, black);
+}
+
+.btn-fun {
+  background: linear-gradient(135deg, var(--color-secondary), var(--color-coral));
+  color: white;
+  border-radius: 999px;
+  font-weight: 800;
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--color-coral) 60%, transparent);
 }

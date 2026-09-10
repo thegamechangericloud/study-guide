@@ -1,5 +1,7 @@
+import type { CSSProperties } from "react";
 import { prisma } from "@/lib/prisma";
 import { requireStudent } from "@/lib/guards";
+import { subjectTheme } from "@/lib/subject-theme";
 
 const MASTERY_LABEL: Record<string, string> = {
   NOT_STARTED: "Por comenzar",
@@ -31,7 +33,7 @@ export default async function StudentProgressPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold">Mis logros</h1>
+      <h1 className="text-2xl font-bold">🏆 Mis logros</h1>
 
       <section className="grid sm:grid-cols-3 gap-4">
         <div className="card p-5 text-center">
@@ -84,14 +86,29 @@ export default async function StudentProgressPage() {
               Completa lecciones para ver tu progreso aquí.
             </p>
           )}
-          {mastery.map((m) => (
-            <div key={m.id} className="card p-3 flex items-center justify-between text-sm">
-              <span>
-                {m.competency.subject.name} — {m.competency.description}
-              </span>
-              <span className="font-semibold">{MASTERY_LABEL[m.level]}</span>
-            </div>
-          ))}
+          {mastery.map((m) => {
+            const theme = subjectTheme(m.competency.subject.code);
+            return (
+              <div
+                key={m.id}
+                className="kid-card p-3 flex items-center gap-3 text-sm"
+                style={{ "--subject-color": theme.color } as CSSProperties}
+              >
+                <span className="subject-icon shrink-0" aria-hidden>
+                  {theme.emoji}
+                </span>
+                <span className="flex-1">
+                  {m.competency.subject.name} — {m.competency.description}
+                </span>
+                <span
+                  className="subject-chip"
+                  style={{ "--subject-color": theme.color } as CSSProperties}
+                >
+                  {MASTERY_LABEL[m.level]}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </section>
     </div>

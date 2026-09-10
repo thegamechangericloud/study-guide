@@ -6,18 +6,21 @@ export default async function StudentLayout({ children }: { children: React.Reac
   const session = await requireStudent();
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col kid-zone">
       <header
-        className="px-4 py-3 flex items-center justify-between"
-        style={{ background: "var(--color-primary)", color: "white" }}
+        className="px-4 py-4 flex items-center justify-between shadow-sm"
+        style={{
+          background: "linear-gradient(120deg, var(--color-primary), var(--color-sky))",
+          color: "white",
+        }}
       >
-        <Link href="/student" className="font-bold flex items-center gap-2 focus-ring">
-          <span aria-hidden>🌺</span> Estudia RD
+        <Link href="/student" className="text-lg font-extrabold flex items-center gap-2 focus-ring">
+          <span aria-hidden className="text-2xl">🌺</span> Estudia RD
         </Link>
-        <div className="flex items-center gap-4 text-sm">
-          <span>Hola, {session.displayName} 👋</span>
+        <div className="flex items-center gap-4 text-sm font-medium">
+          <span>¡Hola, {session.displayName}! 👋</span>
           <Link href="/student/progress" className="underline focus-ring">
-            Mis logros
+            🏆 Mis logros
           </Link>
           <Link href="/accessibility" className="underline focus-ring">
             ⚙️
