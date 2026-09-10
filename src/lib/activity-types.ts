@@ -37,3 +37,10 @@ export type VideoContent = {
   // freely-licensed demo used only to exercise the VideoPlayer component.
   demoDisclaimer?: string;
 };
+
+export type PrintableWorksheetContent = {
+  instructions: string;
+  // Each item becomes one numbered line with a blank writing space —
+  // e.g. a word to copy, a short-answer prompt, a math problem to solve.
+  items: string[];
+};

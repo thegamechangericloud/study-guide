@@ -10,6 +10,7 @@ import { TraceCanvas } from "./TraceCanvas";
 import { ReadingPassagePlayer } from "./ReadingPassagePlayer";
 import { WordBuilder } from "./WordBuilder";
 import { VideoPlayer } from "./VideoPlayer";
+import { WorksheetPlayer } from "./WorksheetPlayer";
 import type {
   NarratedStoryContent,
   MatchingContent,
@@ -17,7 +18,19 @@ import type {
   ReadingPassageContent,
   WordBuilderContent,
   VideoContent,
+  PrintableWorksheetContent,
 } from "@/lib/activity-types";
+
+const KNOWN_TYPES = [
+  "NARRATED_STORY",
+  "MATCHING",
+  "QUIZ",
+  "DRAWING",
+  "READING_PASSAGE",
+  "DRAG_AND_DROP",
+  "VIDEO",
+  "PRINTABLE_WORKSHEET",
+];
 
 type AnswerOption = { id: string; label: string; isCorrect: boolean };
 type Question = { id: string; prompt: string; explanation: string | null; answerOptions: AnswerOption[] };
@@ -163,6 +176,23 @@ export function LessonPlayer({
           onCheckpoint={persistVideoPosition}
           onDone={advance}
         />
+      )}
+      {activity.type === "PRINTABLE_WORKSHEET" && (
+        <WorksheetPlayer
+          title={activity.title}
+          content={activity.content as PrintableWorksheetContent}
+          onDone={advance}
+        />
+      )}
+      {!KNOWN_TYPES.includes(activity.type) && (
+        <div className="card p-6 space-y-4 text-center">
+          <p style={{ color: "var(--color-ink-muted)" }}>
+            Esta actividad todavía no está disponible en este dispositivo.
+          </p>
+          <button type="button" onClick={advance} className="btn-primary px-6 py-2 font-semibold focus-ring">
+            Continuar →
+          </button>
+        </div>
       )}
     </div>
   );
