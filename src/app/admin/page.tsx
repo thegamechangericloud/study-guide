@@ -9,7 +9,7 @@ export default async function AdminHomePage() {
     ? await prisma.school.findUnique({ where: { id: session.schoolId } })
     : null;
 
-  const [teacherCount, studentCount, classroomCount, users] = await Promise.all([
+  const [teacherCount, studentCount, classroomCount, users, contentBySubject] = await Promise.all([
     prisma.user.count({ where: { role: "TEACHER", schoolId: session.schoolId ?? undefined } }),
     prisma.studentProfile.count({ where: { schoolId: session.schoolId ?? undefined } }),
     prisma.classroom.count({ where: { schoolId: session.schoolId ?? undefined } }),
@@ -18,7 +18,17 @@ export default async function AdminHomePage() {
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
+    prisma.subject.findMany({
+      include: { units: { include: { _count: { select: { lessons: true } } } } },
+      orderBy: { name: "asc" },
+    }),
   ]);
+  const coverage = contentBySubject
+    .map((s) => ({
+      name: s.name,
+      total: s.units.reduce((sum, u) => sum + u._count.lessons, 0),
+    }))
+    .filter((s) => s.total > 0);
 
   return (
     <div className="space-y-8">
@@ -48,6 +58,18 @@ export default async function AdminHomePage() {
           <p className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
             Clases
           </p>
+        </div>
+      </section>
+
+      <section className="card p-5">
+        <h2 className="font-semibold mb-3">📚 Cobertura de contenido por materia</h2>
+        <div className="grid sm:grid-cols-2 gap-2">
+          {coverage.map((s) => (
+            <div key={s.name} className="flex items-center justify-between text-sm border-b pb-1.5" style={{ borderColor: "var(--color-border)" }}>
+              <span>{s.name}</span>
+              <span className="font-semibold">{s.total} lecciones</span>
+            </div>
+          ))}
         </div>
       </section>
 
