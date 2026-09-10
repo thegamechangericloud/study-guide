@@ -12,6 +12,14 @@ export default async function StudentHomePage() {
     include: { currentGrade: true },
   });
 
+  // The lightweight diagnostic (src/components/DiagnosticQuiz.tsx) is only
+  // scoped to the literacy-foundational age bands — see submitDiagnostic's
+  // note on why this isn't offered app-wide.
+  const showDiagnosticPrompt =
+    (profile?.currentGrade?.defaultAgeGroup === "EARLY_EXPLORERS" ||
+      profile?.currentGrade?.defaultAgeGroup === "BEGINNING_READERS") &&
+    (await prisma.diagnosticResult.count({ where: { studentProfileId: session.sub } })) === 0;
+
   const continueCheckpoint = await prisma.progressCheckpoint.findFirst({
     where: { studentProfileId: session.sub, completed: false },
     orderBy: { lastAccessedAt: "desc" },
@@ -42,6 +50,20 @@ export default async function StudentHomePage() {
 
   return (
     <div className="space-y-10">
+      {showDiagnosticPrompt && (
+        <section className="kid-card p-5 flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <p className="font-semibold">📝 ¿Por dónde empezamos?</p>
+            <p className="text-sm" style={{ color: "var(--color-ink-muted)" }}>
+              Responde 5 preguntas cortas para ayudarnos a recomendarte el mejor punto de partida.
+            </p>
+          </div>
+          <Link href="/student/diagnostic" className="btn-fun px-5 py-2.5 focus-ring">
+            Comenzar
+          </Link>
+        </section>
+      )}
+
       {continueCheckpoint && (
         <section
           className="kid-card p-6 flex items-center justify-between flex-wrap gap-4"
