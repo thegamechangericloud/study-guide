@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdult } from "@/lib/guards";
 import { logAudit } from "@/lib/audit";
+import { notifyGuardiansOfStudent } from "@/lib/notify";
 
 const assignSchema = z.object({
   classroomId: z.string(),
@@ -81,6 +82,12 @@ export async function addTeacherFeedback(formData: FormData) {
     action: "TEACHER_FEEDBACK_ADDED",
     entityType: "TeacherFeedback",
     entityId: feedback.id,
+  });
+
+  await notifyGuardiansOfStudent(parsed.studentProfileId, {
+    type: "TEACHER_MESSAGE",
+    title: "Nuevo comentario del maestro/a",
+    body: parsed.message,
   });
 
   revalidatePath(`/teacher/classrooms/${parsed.classroomId}`);

@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAdult } from "@/lib/guards";
+import { markAllNotificationsRead } from "@/actions/notifications";
+
+const NOTIFICATION_ICON: Record<string, string> = {
+  WEEKLY_SUMMARY: "📊",
+  TEACHER_MESSAGE: "💬",
+  ASSIGNMENT_DUE: "📅",
+  ACHIEVEMENT_EARNED: "🏅",
+  SYSTEM: "🔔",
+};
 
 export default async function ParentHomePage() {
   const session = await requireAdult(["PARENT"]);
@@ -9,6 +18,13 @@ export default async function ParentHomePage() {
     where: { userId: session.sub },
     include: { studentProfile: { include: { currentGrade: true } } },
   });
+
+  const notifications = await prisma.notification.findMany({
+    where: { userId: session.sub },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  });
+  const unreadCount = notifications.filter((n) => !n.readAt).length;
 
   const children = await Promise.all(
     guardianships.map(async (g) => {
@@ -37,6 +53,41 @@ export default async function ParentHomePage() {
           + Agregar estudiante
         </Link>
       </div>
+
+      {notifications.length > 0 && (
+        <section className="card p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold">
+              🔔 Notificaciones {unreadCount > 0 && `(${unreadCount} nuevas)`}
+            </h2>
+            {unreadCount > 0 && (
+              <form action={markAllNotificationsRead}>
+                <button type="submit" className="text-xs underline focus-ring">
+                  Marcar todas como leídas
+                </button>
+              </form>
+            )}
+          </div>
+          <div className="space-y-2">
+            {notifications.map((n) => (
+              <div
+                key={n.id}
+                className="flex items-start gap-3 text-sm p-2 rounded-md"
+                style={{ background: n.readAt ? "transparent" : "color-mix(in srgb, var(--color-accent) 12%, white)" }}
+              >
+                <span aria-hidden>{NOTIFICATION_ICON[n.type] ?? "🔔"}</span>
+                <div>
+                  <p className="font-medium">{n.title}</p>
+                  <p style={{ color: "var(--color-ink-muted)" }}>{n.body}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--color-ink-muted)" }}>
+                    {n.createdAt.toLocaleDateString("es-DO")}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {children.length === 0 && (
         <p style={{ color: "var(--color-ink-muted)" }}>
