@@ -15,6 +15,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin/curriculum" className="underline focus-ring">
             Currículo
           </Link>
+          <Link href="/admin/classrooms" className="underline focus-ring">
+            Clases
+          </Link>
+          <Link href="/admin/students" className="underline focus-ring">
+            Estudiantes
+          </Link>
           <span>{session.name}</span>
           <form action={logoutAdult}>
             <button type="submit" className="underline focus-ring">
