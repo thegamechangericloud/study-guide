@@ -104,7 +104,7 @@ export function MatchingGame({
           <button
             type="button"
             onClick={() => onDone({ correct: content.pairs.length, total: content.pairs.length })}
-            className="btn-primary px-6 py-2 font-semibold focus-ring"
+            className="btn-fun px-6 py-2.5 focus-ring"
           >
             Continuar →
           </button>

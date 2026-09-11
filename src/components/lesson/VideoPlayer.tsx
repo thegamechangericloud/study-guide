@@ -78,7 +78,7 @@ export function VideoPlayer({
         <p style={{ color: "var(--color-ink-muted)" }}>
           Este video todavía no está disponible.
         </p>
-        <button type="button" onClick={onDone} className="btn-primary px-6 py-2 font-semibold focus-ring">
+        <button type="button" onClick={onDone} className="btn-fun px-6 py-2.5 focus-ring">
           Continuar →
         </button>
       </div>
@@ -190,7 +190,7 @@ export function VideoPlayer({
         <button
           type="button"
           onClick={onDone}
-          className="btn-primary px-6 py-2 font-semibold focus-ring"
+          className="btn-fun px-6 py-2.5 focus-ring"
         >
           {ended ? "Continuar ✓" : "Continuar →"}
         </button>

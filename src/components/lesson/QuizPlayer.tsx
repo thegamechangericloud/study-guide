@@ -56,9 +56,13 @@ export function QuizPlayer({
               type="button"
               onClick={() => choose(option)}
               disabled={revealed}
-              className="w-full text-left px-4 py-3 rounded-md border font-medium focus-ring"
+              className="w-full text-left px-4 py-3 rounded-xl border-2 font-semibold focus-ring transition-transform hover:scale-[1.01]"
               style={{
-                borderColor: "var(--color-border)",
+                borderColor: showCorrect
+                  ? "var(--color-palm)"
+                  : showWrong
+                    ? "var(--color-coral)"
+                    : "var(--color-border)",
                 background: showCorrect
                   ? "color-mix(in srgb, var(--color-palm) 25%, white)"
                   : showWrong
@@ -89,7 +93,7 @@ export function QuizPlayer({
 
       {revealed && (
         <div className="text-right">
-          <button type="button" onClick={next} className="btn-primary px-6 py-2 font-semibold focus-ring">
+          <button type="button" onClick={next} className="btn-fun px-6 py-2.5 focus-ring">
             {isLast ? "Terminar" : "Siguiente →"}
           </button>
         </div>

@@ -82,7 +82,7 @@ export function WordBuilder({
           type="button"
           disabled={answer.length !== content.correctOrder.length}
           onClick={check}
-          className="btn-primary px-6 py-2 font-semibold focus-ring disabled:opacity-40"
+          className="btn-fun px-6 py-2.5 focus-ring disabled:opacity-40"
         >
           Comprobar
         </button>

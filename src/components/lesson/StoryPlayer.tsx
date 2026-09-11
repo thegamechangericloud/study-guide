@@ -33,7 +33,9 @@ export function StoryPlayer({
             key={i}
             type="button"
             onClick={() => speak(word.replace(/[^\p{L}\p{N}]/gu, ""))}
-            className="mx-1 rounded-md px-1 hover:bg-black/5 focus-ring"
+            className="mx-1 rounded-md px-1 transition-colors focus-ring"
+            onMouseEnter={(e) => (e.currentTarget.style.background = "color-mix(in srgb, var(--color-accent) 35%, transparent)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
           >
             {word}
           </button>
@@ -50,14 +52,14 @@ export function StoryPlayer({
           ← Atrás
         </button>
         {isLast ? (
-          <button type="button" onClick={onDone} className="btn-primary px-6 py-2 font-semibold focus-ring">
+          <button type="button" onClick={onDone} className="btn-fun px-6 py-2.5 focus-ring">
             Continuar ✓
           </button>
         ) : (
           <button
             type="button"
             onClick={() => setIndex((i) => Math.min(content.sentences.length - 1, i + 1))}
-            className="btn-primary px-6 py-2 font-semibold focus-ring"
+            className="btn-fun px-6 py-2.5 focus-ring"
           >
             Siguiente →
           </button>
